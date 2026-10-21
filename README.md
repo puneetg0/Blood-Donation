@@ -110,9 +110,64 @@ The frontend and backend directories will contain their respective application c
 
 ## Project Status
 
-**Current Stage:** Initial Planning and Data Modeling
+**Current Stage:** Initial Implementation — Auth working
 
-The project is currently in the planning stage. Requirements, core features, initial data models, and the development roadmap are being defined before full implementation begins.
+Registration, login, JWT issuance, protected routes, and the core database models are in place.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 15+
+
+### 1. Environment variables
+
+```bash
+cp .env.example .env
+# Edit .env and set DATABASE_URL, SECRET_KEY
+```
+
+### 2. Backend
+
+```bash
+cd backend
+
+# Create and activate virtual environment (if not already done)
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+
+pip install -r requirements.txt
+
+# Run database migrations (after PostgreSQL is running)
+alembic upgrade head
+
+# Start the API server
+uvicorn app.main:app --reload
+# API runs at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+# App runs at http://localhost:5173
+```
+
+### 4. Database setup (PostgreSQL)
+
+```sql
+CREATE USER bdm_user WITH PASSWORD 'your_password';
+CREATE DATABASE blood_donation OWNER bdm_user;
+```
+
+Then run `alembic upgrade head` to create all tables.
 
 ## Future Improvements
 
