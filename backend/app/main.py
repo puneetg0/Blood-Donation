@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth
+from app.api.routes import auth, donors, requests, coordinations
 
 app = FastAPI(
     title="Blood Donation Manager",
@@ -24,6 +24,9 @@ app.add_middleware(
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(auth.router, prefix="/api")
+app.include_router(donors.router, prefix="/api")
+app.include_router(requests.router, prefix="/api")
+app.include_router(coordinations.router, prefix="/api")
 
 
 @app.get("/", tags=["health"])
