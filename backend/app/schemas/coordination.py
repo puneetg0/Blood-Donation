@@ -1,14 +1,14 @@
 """Pydantic schemas for DonationCoordination CRUD operations."""
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.models.enums import CoordinationStatus
 
 
 class CoordinationCreate(BaseModel):
     """Data required to link a donor to a blood request."""
-    request_id: int
-    donor_id: int
+    request_id: int = Field(ge=1)
+    donor_id: int = Field(ge=1)
 
 
 class CoordinationUpdate(BaseModel):

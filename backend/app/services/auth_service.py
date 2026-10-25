@@ -1,6 +1,7 @@
 """Authentication service — registration and login logic."""
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password, verify_password, create_access_token
@@ -24,7 +25,16 @@ def register_user(payload: UserRegister, db: Session) -> TokenResponse:
         role=payload.role,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        if db.query(User).filter(User.email == payload.email).first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account with this email already exists.",
+            ) from error
+        raise
     db.refresh(user)
 
     token = create_access_token({"sub": str(user.id), "role": user.role.value})

@@ -1,0 +1,42 @@
+# Blood Donation Manager — Docker Compose
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: bdm_user
+      POSTGRES_PASSWORD: bdm_pass123
+      POSTGRES_DB: blood_donation
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bdm_user -d blood_donation"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://bdm_user:bdm_pass123@db:5432/blood_donation
+      SECRET_KEY: ${SECRET_KEY:-replace-with-a-64-char-random-string}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

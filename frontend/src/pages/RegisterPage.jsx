@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
+import { getApiErrorMessage } from "../services/api";
 
 export default function RegisterPage() {
   const { register: registerCtx } = useAuth();
@@ -12,7 +13,7 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { role: "requester" } });
+  } = useForm({ defaultValues: { role: "requester" }, mode: "onBlur" });
 
   async function onSubmit(data) {
     setServerError("");
@@ -20,9 +21,7 @@ export default function RegisterPage() {
       await registerCtx(data);
       navigate("/dashboard");
     } catch (err) {
-      setServerError(
-        err.response?.data?.detail ?? "Registration failed. Please try again."
-      );
+      setServerError(getApiErrorMessage(err, "Registration failed. Please try again."));
     }
   }
 
@@ -41,7 +40,11 @@ export default function RegisterPage() {
               id="full_name"
               type="text"
               autoComplete="name"
-              {...register("full_name", { required: "Full name is required." })}
+              {...register("full_name", {
+                required: "Full name is required.",
+                validate: (value) => value.trim().length >= 2 || "Enter at least 2 characters.",
+                maxLength: { value: 100, message: "Name must be 100 characters or fewer." },
+              })}
             />
             {errors.full_name && <span className="error-text">{errors.full_name.message}</span>}
           </div>
@@ -54,7 +57,7 @@ export default function RegisterPage() {
               autoComplete="email"
               {...register("email", {
                 required: "Email is required.",
-                pattern: { value: /\S+@\S+\.\S+/, message: "Enter a valid email." },
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email." },
               })}
             />
             {errors.email && <span className="error-text">{errors.email.message}</span>}
@@ -69,6 +72,8 @@ export default function RegisterPage() {
               {...register("password", {
                 required: "Password is required.",
                 minLength: { value: 8, message: "Password must be at least 8 characters." },
+                validate: (value) => new TextEncoder().encode(value).length <= 72
+                  || "Password must be no more than 72 UTF-8 bytes.",
               })}
             />
             {errors.password && <span className="error-text">{errors.password.message}</span>}

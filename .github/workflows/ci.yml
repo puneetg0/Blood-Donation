@@ -1,0 +1,66 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: bdm_user
+          POSTGRES_PASSWORD: bdm_pass123
+          POSTGRES_DB: blood_donation
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U bdm_user -d blood_donation"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql+psycopg://bdm_user:bdm_pass123@localhost:5432/blood_donation
+          SECRET_KEY: test-secret-key-do-not-use-in-production
+          ACCESS_TOKEN_EXPIRE_MINUTES: 60
+        run: |
+          cd backend
+          alembic upgrade head
+          python -m pytest tests -v
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build

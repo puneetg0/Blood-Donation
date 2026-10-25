@@ -2,7 +2,8 @@
 -- In a terminal: psql -U postgres -f setup_db.sql
 
 -- 1. Create the application user (choose your own password)
-CREATE USER bdm_user WITH PASSWORD 'bdm_pass123';
+CREATE USER bdm_user WITH LOGIN;
+\password bdm_user
 
 -- 2. Create the database owned by that user
 CREATE DATABASE blood_donation OWNER bdm_user;

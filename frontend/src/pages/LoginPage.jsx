@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
+import { getApiErrorMessage } from "../services/api";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -12,7 +13,7 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm();
+  } = useForm({ mode: "onBlur" });
 
   async function onSubmit(data) {
     setServerError("");
@@ -20,9 +21,7 @@ export default function LoginPage() {
       await login(data);
       navigate("/dashboard");
     } catch (err) {
-      setServerError(
-        err.response?.data?.detail ?? "Login failed. Please try again."
-      );
+      setServerError(getApiErrorMessage(err, "Login failed. Please try again."));
     }
   }
 
@@ -43,7 +42,7 @@ export default function LoginPage() {
               autoComplete="email"
               {...register("email", {
                 required: "Email is required.",
-                pattern: { value: /\S+@\S+\.\S+/, message: "Enter a valid email." },
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email." },
               })}
             />
             {errors.email && <span className="error-text">{errors.email.message}</span>}

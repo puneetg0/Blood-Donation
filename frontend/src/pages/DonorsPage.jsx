@@ -1,219 +1,340 @@
-/**
- * DonorsPage — search donors by blood group and city.
- * Donors can also create or update their own profile from here.
- */
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
-import { listDonors, createDonor, getMyDonorProfile, updateDonor } from "../services/api";
+import {
+  createDonor,
+  getApiErrorMessage,
+  getMyDonorProfile,
+  listDonors,
+  updateDonor,
+} from "../services/api";
 import Navbar from "../components/Navbar";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+const AVAILABILITY_LABELS = {
+  available: "Available",
+  unavailable: "Unavailable",
+  unknown: "Unknown",
+};
 
 export default function DonorsPage() {
   const { user } = useAuth();
-
-  // Search state
-  const [donors, setDonors]       = useState([]);
+  const [donors, setDonors] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [searched, setSearched]   = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [searchFilters, setSearchFilters] = useState(null);
+  const [searchOffset, setSearchOffset] = useState(0);
+  const [searchError, setSearchError] = useState("");
+  const [myProfile, setMyProfile] = useState(null);
+  const [profileError, setProfileError] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileLoading, setProfileLoading] = useState(user?.role === "donor");
+  const [showForm, setShowForm] = useState(false);
 
-  // Donor profile state (for users with role=donor)
-  const [myProfile, setMyProfile]     = useState(null);
-  const [profileMsg, setProfileMsg]   = useState("");
-  const [showForm, setShowForm]       = useState(false);
-
-  // Search form
-  const { register: regSearch, handleSubmit: handleSearch } = useForm();
-
-  // Profile form
   const {
-    register: regProfile,
+    register: registerSearch,
+    handleSubmit: handleSearch,
+    reset: resetSearch,
+  } = useForm({ defaultValues: { availability_status: "available" } });
+  const {
+    register: registerProfile,
     handleSubmit: handleProfile,
-    reset,
-    formState: { isSubmitting },
-  } = useForm();
+    reset: resetProfile,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      blood_group: BLOOD_GROUPS[0],
+      availability_status: "available",
+      consent_to_contact: false,
+    },
+  });
 
-  // Load own donor profile if logged in as donor
   useEffect(() => {
-    if (user?.role === "donor") {
-      getMyDonorProfile()
-        .then((res) => {
-          setMyProfile(res.data);
-          reset(res.data); // pre-fill the form
-        })
-        .catch(() => {}); // no profile yet — that's fine
+    if (user?.role !== "donor") {
+      setProfileLoading(false);
+      return;
     }
-  }, [user, reset]);
 
-  // Search donors
-  async function onSearch(data) {
+    getMyDonorProfile()
+      .then((response) => {
+        setMyProfile(response.data);
+        resetProfile(response.data);
+      })
+      .catch((error) => {
+        if (error.response?.status !== 404) {
+          setProfileError(getApiErrorMessage(error, "Could not load your donor profile."));
+        }
+      })
+      .finally(() => setProfileLoading(false));
+  }, [user?.role, resetProfile]);
+
+  useEffect(() => {
+    if (!searched || !searchFilters) return undefined;
+
+    let active = true;
     setSearching(true);
+    setSearchError("");
+    listDonors({ ...searchFilters, offset: searchOffset, limit: 51 })
+      .then((response) => {
+        if (active) setDonors(response.data);
+      })
+      .catch((error) => {
+        if (active) {
+          setDonors([]);
+          setSearchError(getApiErrorMessage(error, "Could not search donors."));
+        }
+      })
+      .finally(() => {
+        if (active) setSearching(false);
+      });
+
+    return () => { active = false; };
+  }, [searched, searchFilters, searchOffset]);
+
+  async function onSearch(data) {
+    const params = {};
+    if (data.blood_group) params.blood_group = data.blood_group;
+    if ((data.city ?? "").trim()) params.city = data.city.trim();
+    if (data.availability_status) params.availability_status = data.availability_status;
+    setSearchOffset(0);
+    setSearchFilters(params);
     setSearched(true);
+  }
+
+  async function onSaveProfile(data) {
+    setProfileError("");
+    setProfileMessage("");
     try {
-      const params = {};
-      if (data.blood_group) params.blood_group = data.blood_group;
-      if (data.city)        params.city        = data.city;
-      const res = await listDonors(params);
-      setDonors(res.data);
-    } catch {
-      setDonors([]);
-    } finally {
-      setSearching(false);
+      const response = myProfile
+        ? await updateDonor(myProfile.id, data)
+        : await createDonor(data);
+      setMyProfile(response.data);
+      resetProfile(response.data);
+      setProfileMessage("Your donor profile has been saved.");
+      setShowForm(false);
+    } catch (error) {
+      setProfileError(getApiErrorMessage(error, "Could not save your profile."));
     }
   }
 
-  // Create or update donor profile
-  async function onSaveProfile(data) {
-    setProfileMsg("");
-    try {
-      if (myProfile) {
-        const res = await updateDonor(myProfile.id, data);
-        setMyProfile(res.data);
-      } else {
-        const res = await createDonor(data);
-        setMyProfile(res.data);
-      }
-      setProfileMsg("Profile saved successfully.");
-      setShowForm(false);
-    } catch (err) {
-      setProfileMsg(err.response?.data?.detail ?? "Could not save profile.");
-    }
+  function toggleProfileForm() {
+    setProfileError("");
+    setProfileMessage("");
+    resetProfile(myProfile ?? {
+      blood_group: BLOOD_GROUPS[0],
+      phone_number: "",
+      city: "",
+      availability_status: "available",
+      consent_to_contact: false,
+    });
+    setShowForm((visible) => !visible);
   }
 
   return (
     <>
       <Navbar />
-
       <main className="page-container">
+        <header className="page-header">
+          <div>
+            <h2>Donor directory</h2>
+            <p className="page-subtitle">Search consenting donors by blood group, location, and availability.</p>
+          </div>
+        </header>
 
-        {/* ── Donor Profile Section (donors only) ── */}
         {user?.role === "donor" && (
-          <section className="card">
+          <section className="card" aria-labelledby="profile-heading">
             <div className="card-header">
-              <h3>My Donor Profile</h3>
-              <button className="btn btn-outline" onClick={() => setShowForm(!showForm)}>
-                {showForm ? "Cancel" : myProfile ? "Edit" : "Create Profile"}
+              <h3 id="profile-heading">My donor profile</h3>
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={toggleProfileForm}
+                disabled={profileLoading}
+              >
+                {showForm ? "Close" : myProfile ? "Edit profile" : "Create profile"}
               </button>
             </div>
+            {profileLoading && <p className="empty-text">Loading your profile…</p>}
+            {profileError && <div className="alert alert-error" role="alert">{profileError}</div>}
+            {profileMessage && <div className="alert alert-success" role="status">{profileMessage}</div>}
 
-            {profileMsg && (
-              <div className={`alert ${profileMsg.includes("success") ? "alert-success" : "alert-error"}`}>
-                {profileMsg}
-              </div>
-            )}
-
-            {/* Profile summary */}
             {myProfile && !showForm && (
               <div className="profile-summary">
                 <span className="badge">{myProfile.blood_group}</span>
                 <span>{myProfile.city}</span>
                 <span className={`status-dot ${myProfile.availability_status}`}>
-                  {myProfile.availability_status}
+                  {AVAILABILITY_LABELS[myProfile.availability_status]}
                 </span>
+                <span>{myProfile.consent_to_contact ? "Contact consent enabled" : "Contact consent disabled"}</span>
               </div>
             )}
 
-            {/* Profile form */}
             {showForm && (
-              <form onSubmit={handleProfile(onSaveProfile)} className="inline-form">
+              <form onSubmit={handleProfile(onSaveProfile)} className="inline-form" noValidate>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Blood Group</label>
-                    <select {...regProfile("blood_group", { required: true })}>
-                      {BLOOD_GROUPS.map((bg) => <option key={bg}>{bg}</option>)}
+                    <label htmlFor="profile-blood-group">Blood group</label>
+                    <select id="profile-blood-group" {...registerProfile("blood_group", { required: "Choose a blood group." })}>
+                      {BLOOD_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}
                     </select>
+                    {errors.blood_group && <span className="error-text">{errors.blood_group.message}</span>}
                   </div>
                   <div className="form-group">
-                    <label>Phone Number</label>
-                    <input type="tel" {...regProfile("phone_number", { required: true })} />
+                    <label htmlFor="profile-phone">Phone number</label>
+                    <input
+                      id="profile-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      {...registerProfile("phone_number", {
+                        required: "Phone number is required.",
+                        validate: (value) => {
+                          const normalized = value.trim();
+                          const isValidFormat = /^[+]?[0-9][0-9\s().-]{5,24}$/.test(normalized);
+                          return (isValidFormat && (normalized.match(/[0-9]/g) ?? []).length >= 7)
+                            || "Enter a valid phone number.";
+                        },
+                      })}
+                    />
+                    {errors.phone_number && <span className="error-text">{errors.phone_number.message}</span>}
                   </div>
                   <div className="form-group">
-                    <label>City</label>
-                    <input type="text" {...regProfile("city", { required: true })} />
+                    <label htmlFor="profile-city">City</label>
+                    <input
+                      id="profile-city"
+                      type="text"
+                      maxLength="100"
+                      {...registerProfile("city", {
+                        required: "City is required.",
+                        validate: (value) => value.trim().length >= 2 || "Enter at least 2 characters.",
+                      })}
+                    />
+                    {errors.city && <span className="error-text">{errors.city.message}</span>}
                   </div>
                   <div className="form-group">
-                    <label>Availability</label>
-                    <select {...regProfile("availability_status")}>
-                      <option value="available">Available</option>
-                      <option value="unavailable">Unavailable</option>
-                      <option value="unknown">Unknown</option>
+                    <label htmlFor="profile-availability">Availability</label>
+                    <select id="profile-availability" {...registerProfile("availability_status")}>
+                      {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
-                <div className="form-group">
-                  <label className="checkbox-label">
-                    <input type="checkbox" {...regProfile("consent_to_contact")} />
-                    I consent to being contacted
-                  </label>
-                </div>
+                <label className="checkbox-label">
+                  <input type="checkbox" {...registerProfile("consent_to_contact")} />
+                  I consent to being listed in donor search results
+                </label>
+                <p className="hint-text">Your phone number is never shown in the donor directory.</p>
                 <button className="btn btn-primary" type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving…" : "Save Profile"}
+                  {isSubmitting ? "Saving…" : "Save profile"}
                 </button>
               </form>
             )}
           </section>
         )}
 
-        {/* ── Donor Search Section ── */}
-        <section className="card">
-          <h3>Search Donors</h3>
+        <section className="card" aria-labelledby="search-heading">
+          <h3 id="search-heading">Search donors</h3>
           <form onSubmit={handleSearch(onSearch)} className="search-form">
             <div className="form-group">
-              <label>Blood Group</label>
-              <select {...regSearch("blood_group")}>
+              <label htmlFor="search-blood-group">Blood group</label>
+              <select id="search-blood-group" {...registerSearch("blood_group")}>
                 <option value="">All blood groups</option>
-                {BLOOD_GROUPS.map((bg) => <option key={bg}>{bg}</option>)}
+                {BLOOD_GROUPS.map((group) => <option key={group} value={group}>{group}</option>)}
               </select>
             </div>
             <div className="form-group">
-              <label>City</label>
-              <input type="text" placeholder="e.g. Delhi" {...regSearch("city")} />
+              <label htmlFor="search-city">City</label>
+              <input id="search-city" type="search" maxLength="100" placeholder="e.g. Delhi" {...registerSearch("city")} />
             </div>
-            <button className="btn btn-primary search-btn" type="submit">
+            <div className="form-group">
+              <label htmlFor="search-availability">Availability</label>
+              <select id="search-availability" {...registerSearch("availability_status")}>
+                {Object.entries(AVAILABILITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <button className="btn btn-primary search-btn" type="submit" disabled={searching}>
               {searching ? "Searching…" : "Search"}
             </button>
+            <button
+              className="btn btn-outline search-btn"
+              type="button"
+              onClick={() => {
+                resetSearch({ availability_status: "available" });
+                setSearched(false);
+                setSearchFilters(null);
+                setSearchOffset(0);
+                setSearching(false);
+                setDonors([]);
+                setSearchError("");
+              }}
+            >
+              Clear
+            </button>
           </form>
+          <p className="hint-text">Only donors who chose to appear in search results are shown. Search is for coordination only; it does not assess eligibility or compatibility.</p>
         </section>
 
-        {/* ── Search Results ── */}
+        {searchError && <div className="alert alert-error" role="alert">{searchError}</div>}
         {searched && (
-          <section className="card">
-            <h3>Results {donors.length > 0 && <span className="count">({donors.length} found)</span>}</h3>
-
-            {donors.length === 0 ? (
-              <p className="empty-text">No donors found for the selected filters.</p>
+          <section className="card" aria-live="polite">
+            <h3>Results <span className="count">({Math.min(donors.length, 50)} shown)</span></h3>
+            {searching ? (
+              <p className="empty-text">Searching…</p>
+            ) : donors.length === 0 ? (
+              <p className="empty-text">No consenting donors match those filters.</p>
             ) : (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Blood Group</th>
-                      <th>City</th>
-                      <th>Availability</th>
-                      <th>Contact Consent</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {donors.map((d) => (
-                      <tr key={d.id}>
-                        <td><span className="badge">{d.blood_group}</span></td>
-                        <td>{d.city}</td>
-                        <td>
-                          <span className={`status-dot ${d.availability_status}`}>
-                            {d.availability_status}
-                          </span>
-                        </td>
-                        <td>{d.consent_to_contact ? "✅ Yes" : "❌ No"}</td>
+              <>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Donor ID</th>
+                        <th scope="col">Blood group</th>
+                        <th scope="col">City</th>
+                        <th scope="col">Availability</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {donors.slice(0, 50).map((donor) => (
+                        <tr key={donor.id}>
+                          <td>#{donor.id}</td>
+                          <td><span className="badge">{donor.blood_group}</span></td>
+                          <td>{donor.city}</td>
+                          <td>
+                            <span className={`status-dot ${donor.availability_status}`}>
+                              {AVAILABILITY_LABELS[donor.availability_status]}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="pagination-controls" aria-label="Donor search pages">
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={() => setSearchOffset((offset) => Math.max(0, offset - 50))}
+                    disabled={searchOffset === 0 || searching}
+                  >
+                    Previous
+                  </button>
+                  <span>Page {Math.floor(searchOffset / 50) + 1}</span>
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={() => setSearchOffset((offset) => offset + 50)}
+                    disabled={donors.length <= 50 || searching}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
             )}
           </section>
         )}
-
       </main>
     </>
   );

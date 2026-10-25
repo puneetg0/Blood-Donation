@@ -274,9 +274,9 @@ erDiagram
 
 ## 10. Technical architecture and API outline
 
-### Frontend — React and Tailwind CSS
+### Frontend — React, Vite, and CSS
 
-Provides forms, donor search, role-specific dashboards, request details, and status updates. Reusable UI components and a shared API client keep the interface consistent.
+Provides forms, donor search, role-specific dashboards, request tracking, and status updates. The current frontend uses React, Vite, a shared API client, and responsive CSS.
 
 ### Backend — Python and FastAPI
 
@@ -286,9 +286,9 @@ Provides REST endpoints and business logic for authentication, donor profiles, d
 
 Stores accounts, donor profiles, requests, coordination records, and status history, with foreign keys, constraints, and indexes to preserve integrity and support searches.
 
-### Proposed REST endpoints
+### Implemented REST endpoints
 
-All endpoints use the `/api/v1` prefix.
+The current API uses the `/api` prefix (the versioned `/api/v1` prefix remains a possible future migration).
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -299,14 +299,17 @@ All endpoints use the `/api/v1` prefix.
 | `POST` | `/donors` | Create a donor profile |
 | `GET` | `/donors/{id}` | Get an authorized donor profile |
 | `PATCH` | `/donors/{id}` | Update a permitted donor profile |
+| `GET` | `/donors/me` | Get the current donor's private profile |
 | `POST` | `/requests` | Create a blood request |
 | `GET` | `/requests` | List requests accessible to the user |
 | `GET` | `/requests/{id}` | View an authorized request |
 | `PATCH` | `/requests/{id}` | Update permitted request fields or status |
-| `POST` | `/requests/{id}/coordination` | Record a donor coordination attempt |
+| `GET` | `/requests/{id}/history` | View status history for an owned request or as admin |
+| `POST` | `/coordinations` | Link an opted-in, available donor (admin only) |
+| `GET` | `/dashboard/summary` | Get role-scoped dashboard counts |
 | `GET` | `/admin/dashboard` | Get administrator statistics |
 
-The API will use consistent validation errors and HTTP status codes. List endpoints should support pagination where appropriate.
+List routes support `offset` and `limit` pagination (maximum 100). Donor search defaults to available donors and never returns phone numbers; only donors who consented to appear are included. Requesters can see their own requests, donors can see open requests, and administrators can see all requests and manage coordination/statuses. Public registration cannot create administrator accounts; use the interactive `backend/create_admin.py` setup command after migrations.
 
 ## 11. Project folder structure
 
@@ -449,3 +452,9 @@ Deployment is complete only after the deployed application has been tested. If d
 The expected outcome is a functional, responsive Blood Donation Manager MVP that centralizes donor profiles and blood requests. Its core workflows will support donor registration, authorized donor search, self-reported availability updates, request management, role-based access, and status tracking.
 
 The project will demonstrate requirement analysis, software architecture, relational database design, REST API development, frontend/backend integration, testing, Git version control, and technical documentation. It will provide a maintainable foundation that can be extended with notifications, advanced location search, and reporting after the core workflows are stable.
+
+## 19. Implemented MVP status
+
+The working repository now includes authentication, role-scoped access, donor profile management and consent-aware search, request creation and tracking, administrator coordination, request status history, dashboard summaries, client/server validation, responsive layouts, and API workflow tests. Run instructions, environment configuration, and administrator bootstrap steps are in the root [README.md](../../README.md).
+
+The P1 items above (notifications, distance-based search, analytics/reports, and donation history) remain out of scope for the MVP.

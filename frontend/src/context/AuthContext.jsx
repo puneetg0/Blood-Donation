@@ -6,7 +6,12 @@
  * it is removed automatically.
  */
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { loginUser as apiLogin, registerUser as apiRegister, getMe } from "../services/api";
+import {
+  getApiErrorMessage,
+  loginUser as apiLogin,
+  registerUser as apiRegister,
+  getMe,
+} from "../services/api";
 
 const AuthContext = createContext(null);
 
@@ -14,21 +19,34 @@ export function AuthProvider({ children }) {
   const [user, setUser]   = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem("access_token"));
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState("");
+  const [sessionAttempt, setSessionAttempt] = useState(0);
 
   // Restore session on page reload
   useEffect(() => {
+    setLoading(true);
     if (!token) {
+      setUser(null);
+      setSessionError("");
       setLoading(false);
       return;
     }
     getMe()
-      .then((res) => setUser(res.data))
-      .catch(() => {
-        localStorage.removeItem("access_token");
-        setToken(null);
+      .then((res) => {
+        setUser(res.data);
+        setSessionError("");
+      })
+      .catch((error) => {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem("access_token");
+          setToken(null);
+          setUser(null);
+        } else {
+          setSessionError(getApiErrorMessage(error, "Could not verify your session."));
+        }
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, sessionAttempt]);
 
   const saveToken = (t) => {
     localStorage.setItem("access_token", t);
@@ -56,10 +74,20 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("access_token");
     setToken(null);
     setUser(null);
+    setSessionError("");
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{
+      user,
+      token,
+      login,
+      register,
+      logout,
+      loading,
+      sessionError,
+      retrySession: () => setSessionAttempt((attempt) => attempt + 1),
+    }}>
       {children}
     </AuthContext.Provider>
   );
