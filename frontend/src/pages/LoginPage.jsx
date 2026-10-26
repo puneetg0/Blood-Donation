@@ -28,8 +28,9 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-brand">Blood Donation Manager</div>
         <h1>Welcome back</h1>
-        <p className="subtitle">Sign in to Blood Donation Manager</p>
+        <p className="subtitle">Sign in to your account</p>
 
         {serverError && <div className="alert alert-error">{serverError}</div>}
 

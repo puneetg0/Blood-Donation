@@ -28,6 +28,7 @@ export default function RegisterPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-brand">Blood Donation Manager</div>
         <h1>Create account</h1>
         <p className="subtitle">Join Blood Donation Manager</p>
 
