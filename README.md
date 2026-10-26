@@ -310,16 +310,29 @@ The API workflow tests cover input validation, donor privacy/consent, request ow
 
 ## Screenshots
 
-| Page | Description |
-|------|-------------|
-| `docs/screenshots/login.png` | Login page — authenticate with email and password |
-| `docs/screenshots/register.png` | Register page — create a new donor or requester account |
-| `docs/screenshots/dashboard.png` | Dashboard — role-scoped stats and quick actions |
-| `docs/screenshots/donors.png` | Donor search — filter by blood group, city, availability |
-| `docs/screenshots/requests.png` | Blood requests — create, view, update, cancel requests |
-| `docs/screenshots/api-docs.png` | Interactive API docs (Swagger UI) at `/docs` |
+| Page |
 
-> Place actual screenshot images in `docs/screenshots/` to populate this section.
+|------|-------------|
+| Login page — authenticate with email and password |
+|<img width="1704" height="973" alt="image" src="https://github.com/user-attachments/assets/1076f59b-a9e3-4c09-a03c-570bc6f1fd22" />
+
+| Register page — create a new donor or requester account |
+|<img width="1656" height="987" alt="image" src="https://github.com/user-attachments/assets/9a9d4b6c-ceea-4758-af81-af62416b59e4" />
+
+| Dashboard — role-scoped stats and quick actions | 
+|<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/6576c65a-1079-4aeb-aec0-82701c73a652" />
+
+| Donor search — filter by blood group, city, availability | 
+| <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9c6188a2-2c18-442a-9a10-7dc0441faeaa" />
+
+| Blood requests — create, view, update, cancel requests| 
+| <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/75d3ff1c-3833-4ec5-b63d-5944cd357dcd" />
+
+| Interactive API docs (Swagger UI) at `/docs` |
+| <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/7fbd41af-925f-4eb0-9787-8b1773408a44" />
+ 
+
+>
 
 ---
 
