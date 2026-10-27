@@ -92,7 +92,22 @@ def list_coordinations_for_request(
         .all()
     )
 
-
+def list_coordinations_by_donor(
+    donor_id: int, current_user: User, db: Session
+) -> list[DonationCoordination]:
+    """List all coordination records for a donor."""
+    if current_user.role == Role.admin:
+        pass
+    else:
+        donor = db.query(Donor).filter(Donor.user_id == current_user.id).first()
+        if not donor or donor.id != donor_id:
+            raise HTTPException(status_code=403, detail="Not authorized.")
+    return (
+        db.query(DonationCoordination)
+        .filter(DonationCoordination.donor_id == donor_id)
+        .order_by(DonationCoordination.created_at)
+        .all()
+    )
 def update_coordination(
     coordination_id: int,
     payload: CoordinationUpdate,
@@ -125,3 +140,37 @@ def delete_coordination(
     coordination = get_coordination_by_id(coordination_id, current_user, db)
     db.delete(coordination)
     db.commit()
+
+def respond_to_coordination(
+    coordination_id: int, current_user: User, response_text: str, db: Session
+) -> DonationCoordination:
+    """Donor responds to a coordination request (accept/decline)."""
+    coordination = db.get(DonationCoordination, coordination_id)
+    if not coordination:
+        raise HTTPException(status_code=404, detail="Coordination record not found.")
+
+    donor = db.query(Donor).filter(Donor.user_id == current_user.id).first()
+    if not donor or coordination.donor_id != donor.id:
+        raise HTTPException(
+            status_code=403, detail="You can only respond to your own coordination request."
+        )
+
+    if coordination.coordination_status != "contact_pending":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Can only respond to pending coordination. Current status: {coordination.coordination_status}.",
+        )
+
+    if response_text not in ("accept", "decline"):
+        raise HTTPException(status_code=400, detail="Response must be 'accept' or 'decline'.")
+
+    if response_text == "accept":
+        coordination.coordination_status = "contacted"
+        if donor.availability_status == AvailabilityStatus.unknown:
+            donor.availability_status = AvailabilityStatus.available
+    else:
+        coordination.coordination_status = "declined"
+
+    db.commit()
+    db.refresh(coordination)
+    return coordination

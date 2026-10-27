@@ -1,12 +1,16 @@
 """Coordination endpoints — link donors to blood requests."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.coordination import CoordinationCreate, CoordinationOut, CoordinationUpdate
+from app.schemas.coordination import (
+    CoordinationCreate,
+    CoordinationOut,
+    CoordinationUpdate,
+)
 from app.services import coordination_service
 
 router = APIRouter(prefix="/coordinations", tags=["coordinations"])
@@ -22,14 +26,14 @@ def create_coordination(
     return coordination_service.create_coordination(payload, current_user, db)
 
 
-@router.get("/request/{request_id}", response_model=list[CoordinationOut])
-def list_coordinations(
-    request_id: int,
+@router.get("/donor/{donor_id}", response_model=list[CoordinationOut])
+def list_coordinations_by_donor(
+    donor_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all coordination records for a specific blood request."""
-    return coordination_service.list_coordinations_for_request(request_id, current_user, db)
+    """List all coordination records for a donor."""
+    return coordination_service.list_coordinations_by_donor(donor_id, current_user, db)
 
 
 @router.get("/{coordination_id}", response_model=CoordinationOut)
@@ -61,3 +65,17 @@ def delete_coordination(
 ):
     """Remove a coordination record."""
     coordination_service.delete_coordination(coordination_id, current_user, db)
+    return None
+
+
+@router.post("/{coordination_id}/respond", response_model=CoordinationOut, status_code=200)
+def respond_to_coordination(
+    coordination_id: int,
+    response_text: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Donor accepts or declines a coordination request."""
+    return coordination_service.respond_to_coordination(
+        coordination_id, current_user, response_text, db
+    )

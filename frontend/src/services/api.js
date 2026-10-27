@@ -27,6 +27,10 @@ export const getMyDonorProfile= ()         => api.get("/donors/me");
 export const listDonors       = (params)   => api.get("/donors/", { params });
 export const updateDonor      = (id, data) => api.patch(`/donors/${id}`, data);
 
+// ── Donor Availability ──────────────────────────────────────────────────────
+export const updateDonorAvailability = (status) =>
+  api.patch("/donors/me", { availability_status: status });
+
 // ── Blood Requests ────────────────────────────────────────────────────────
 export const createRequest    = (data)     => api.post("/requests/", data);
 export const listRequests     = (params)   => api.get("/requests/", { params });
@@ -37,8 +41,11 @@ export const deleteRequest    = (id)       => api.delete(`/requests/${id}`);
 
 // ── Coordinations ─────────────────────────────────────────────────────────
 export const createCoordination  = (data)     => api.post("/coordinations/", data);
-export const getCoordinations    = (requestId)=> api.get(`/coordinations/request/${requestId}`);
+export const getDonorCoordinations = (donorId) => api.get(`/coordinations/donor/${donorId}`);
+export const getCoordinations    = getDonorCoordinations;  // backwards compatible alias
 export const updateCoordination  = (id, data) => api.patch(`/coordinations/${id}`, data);
+export const respondToCoordination = (id, response) =>
+  api.post(`/coordinations/${id}/respond`, null, { params: { response_text: response } });
 
 // ── Administration ────────────────────────────────────────────────────────
 export const getAdminDashboard = () => api.get("/admin/dashboard");

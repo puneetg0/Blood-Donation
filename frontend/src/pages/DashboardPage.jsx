@@ -26,7 +26,7 @@ export default function DashboardPage() {
     getDashboardSummary().then(({ data }) => {
       setStats({
         donors: data.total_donors,
-        pending: user?.role === "donor" ? data.total_requests : data.pending_requests,
+        pending: data.pending_requests,
         fulfilled: data.fulfilled_requests,
       });
     }).catch((requestError) => {
@@ -74,12 +74,6 @@ export default function DashboardPage() {
               <span className="quick-icon">📋</span>
               <span>View Requests</span>
             </Link>
-            {user?.role === "donor" && (
-              <Link to="/donors" className="quick-card">
-                <span className="quick-icon">👤</span>
-                <span>My Donor Profile</span>
-              </Link>
-            )}
           </div>
         </div>
       </main>

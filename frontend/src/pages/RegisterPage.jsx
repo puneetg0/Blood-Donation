@@ -4,6 +4,15 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { getApiErrorMessage } from "../services/api";
 
+const ELIGIBILITY_ITEMS = [
+  { label: "I am at least 18 years old", hint: "Age requirement varies by country" },
+  { label: "I weigh at least 50 kg (110 lbs)", hint: "Follow local donation rules" },
+  { label: "I am generally healthy, no fever or infection", hint: "You may be deferred if unwell" },
+  { label: "I have not traveled to malaria-risk areas recently", hint: "Travel history matters" },
+  { label: "I am not taking medication that prevents donation", hint: "Ask your doctor if unsure" },
+  { label: "I am not pregnant or breastfeeding", hint: "Follow local guidelines" },
+];
+
 export default function RegisterPage() {
   const { register: registerCtx } = useAuth();
   const navigate = useNavigate();
@@ -12,8 +21,11 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { role: "requester" }, mode: "onBlur" });
+
+  const role = watch("role");
 
   async function onSubmit(data) {
     setServerError("");
@@ -87,6 +99,31 @@ export default function RegisterPage() {
               <option value="donor">Donor</option>
             </select>
           </div>
+
+          {role === "donor" && (
+            <div className="eligibility-card">
+              <div className="eligibility-header">
+                <span className="eligibility-icon">✅</span>
+                <div>
+                  <h4>Eligibility Self-Check</h4>
+                  <p className="hint-text">
+                    Informational checklist to help you prepare before donating. Does not replace screening at the donation centre.
+                  </p>
+                </div>
+              </div>
+              <div className="checkbox-group">
+                {ELIGIBILITY_ITEMS.map((item, idx) => (
+                  <label className="checkbox-label" key={idx}>
+                    <input type="checkbox" defaultChecked />
+                    <div className="checkbox-text">
+                      <span>{item.label}</span>
+                      <span className="hint-text">{item.hint}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button className="btn btn-primary" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Creating account…" : "Create account"}

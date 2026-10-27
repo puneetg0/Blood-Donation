@@ -338,4 +338,98 @@ def test_coordinations_require_request_owner_and_donor_consent(client):
         headers=admin_headers,
         json={"coordination_status": "contacted"},
     )
-    assert contacted.status_code == 200
+
+def test_donor_can_respond_to_coordination(client):
+    donor_headers = register(client, "donor@example.test", "donor")
+    owner_headers = register(client, "owner@example.test")
+
+    donor = client.post(
+        "/api/donors/",
+        headers=donor_headers,
+        json={
+            "blood_group": "B+",
+            "phone_number": "5551234567",
+            "city": "Springfield",
+            "availability_status": "available",
+            "consent_to_contact": True,
+        },
+    ).json()
+    request = client.post(
+        "/api/requests/",
+        headers=owner_headers,
+        json={
+            "blood_group": "B+",
+            "units_required": 1,
+            "hospital_name": "Central Hospital",
+            "city": "Springfield",
+        },
+    ).json()
+    body = {"request_id": request["id"], "donor_id": donor["id"]}
+
+    create_admin()
+    login = client.post(
+        "/api/auth/login", json={"email": "admin@example.test", "password": "admin-password-123"}
+    )
+    admin_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    coord_response = client.post("/api/coordinations/", headers=admin_headers, json=body)
+    assert coord_response.status_code == 201
+
+    # Donor ACC EPTS a pending coordination
+    coordination_id = coord_response.json()["id"]
+    response = client.post(
+        f"/api/coordinations/{coordination_id}/respond?response_text=accept",
+        headers=donor_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["coordination_status"] == "contacted"
+    assert response.json()["donor_id"] == donor["id"]
+
+    # Donor can decline a separate pending coordination
+    decline_request = client.post(
+        "/api/requests/",
+        headers=owner_headers,
+        json={
+            "blood_group": "O+",
+            "units_required": 1,
+            "hospital_name": "Decline Hospital",
+            "city": "Springfield",
+        },
+    ).json()
+    decline_body = {"request_id": decline_request["id"], "donor_id": donor["id"]}
+    decline_coordination = client.post(
+        "/api/coordinations/", headers=admin_headers, json=decline_body
+    )
+    assert decline_coordination.status_code == 201
+    declined = client.post(
+        f"/api/coordinations/{decline_coordination.json()['id']}/respond?response_text=decline",
+        headers=donor_headers,
+    )
+    assert declined.status_code == 200
+    assert declined.json()["coordination_status"] == "declined"
+
+    # Donor cannot respond to a non-pending coordination
+    # Create a new request so a NEW coordination is created
+    control_request = client.post(
+        "/api/requests/",
+        headers=owner_headers,
+        json={
+            "blood_group": "A+",
+            "units_required": 1,
+            "hospital_name": "Control Hospital",
+            "city": "Springfield",
+        },
+    ).json()
+    control_body = {
+        "request_id": control_request["id"],
+        "donor_id": donor["id"],
+    }
+    contacted_coordination = client.post(
+        "/api/coordinations/", headers=admin_headers, json=control_body
+    )
+    assert contacted_coordination.status_code == 201
+    resp = client.post(
+        f"/api/coordinations/{contacted_coordination.json()['id']}/respond?response_text=accept",
+        headers=donor_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["coordination_status"] == "contacted"

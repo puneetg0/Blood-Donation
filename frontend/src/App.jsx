@@ -4,6 +4,7 @@ import RegisterPage   from "./pages/RegisterPage";
 import DashboardPage  from "./pages/DashboardPage";
 import DonorsPage     from "./pages/DonorsPage";
 import RequestsPage   from "./pages/RequestsPage";
+import MyCoordinations from "./pages/MyCoordinationsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/donors"    element={<ProtectedRoute><DonorsPage /></ProtectedRoute>} />
       <Route path="/requests"  element={<ProtectedRoute><RequestsPage /></ProtectedRoute>} />
+      <Route path="/my-coordinations" element={<ProtectedRoute><MyCoordinations /></ProtectedRoute>} />
 
       {/* Default */}
       <Route path="*" element={<Navigate to="/login" replace />} />
